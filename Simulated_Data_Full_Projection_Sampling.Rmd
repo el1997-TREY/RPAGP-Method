@@ -1,0 +1,162 @@
+---
+title: "Simulated_Data_Full_and_Projection_Sampling"
+author: "Enyu Li"
+date: "2025-05-07"
+output: pdf_document
+---
+
+```{r}
+library(MASS)
+library(stats)
+library(beyondWhittle)
+library(uGMAR)
+library(TSA)
+library(dplyr)
+library(ltsa)
+library(readr)
+library(reshape2)
+library(ggplot2)
+library(magrittr)
+library(png)
+library(grid)
+library(tidyr)
+library(mvtnorm)
+library(bentcableAR)
+```
+
+
+This is the Prior Part and the Likelihood Part
+```{r}
+### True generating parameters and simulated data
+set.seed(5010)
+n <- 78 # must put an even number
+n_time <- 100
+n_sims <- 1
+# 
+theta <- list(rho = 10,
+              beta = rep(c(1, 2), n / 2),
+              tau = rnorm(n, 0, 0.1),
+              phi = c(0.5, 0.1),
+              sigma = 0.25)
+
+# 
+# set.seed(108)
+dat <- generate_data(n, n_time, theta)
+dat_trials <- reshape2::melt(dat$y, varnames = c("time", "trial"))
+
+y <- dat$y
+```
+
+```{r}
+# Set up the prior 
+theta0 <- list(rho = 10,
+               beta = c(rep(1, n)),
+               tau = rnorm(n, 0, 0.1),
+               phi = c(0.3, 0.1),
+               sigma = 0.5)
+pinned_point = n_time/2 
+pinned_value = apply(y, 1, mean)[pinned_point]
+```
+
+## Full GP Part
+Use the full GP method to draw samples for f 
+```{r}
+time.cost1<- system.time(result1 <- sample_f(dat$y,theta, n_draws =30, nugget=1e-6))
+sample1_df<- reshape2::melt(result1, varnames = c("time", "draws"))
+MSE <- Calculate_MSE(dat$f, sample1_df)
+
+par(mfrow=c(1, 2))
+plot_function1(dat$f,dat_trials,sample1_df)
+plot_function2(dat$f,dat_trials,sample1_df)
+time.cost1
+MSE
+```
+
+## Projection Method Now
+Moderate the sample f function to sample f projection method.  
+
+First use m = 5
+```{r}
+time.cost2<- system.time(result2 <- sample_f_projection2(dat$y,theta, n_draws =30, m =5,nugget=1e-6))
+sample2_df<- reshape2::melt(result2, varnames = c("time", "draws"))
+MSE <- Calculate_MSE(dat$f,sample2_df)
+
+par(mfrow=c(1, 2))
+plot_function1(dat$f,dat_trials,sample2_df)
+plot_function2(dat$f,dat_trials,sample2_df)
+time.cost2
+MSE
+```
+
+First use m = 10
+```{r}
+time.cost2<- system.time(result2 <- sample_f_projection2(dat$y,theta, n_draws =30, m =10,nugget=1e-6))
+sample2_df<- reshape2::melt(result2, varnames = c("time", "draws"))
+MSE <- Calculate_MSE(dat$f,sample2_df)
+
+par(mfrow=c(1, 2))
+plot_function1(dat$f,dat_trials,sample2_df)
+plot_function2(dat$f,dat_trials,sample2_df)
+time.cost2
+MSE
+```
+
+First use m = 15
+```{r}
+time.cost2<- system.time(result2 <- sample_f_projection2(dat$y,theta, n_draws =30, m =15,nugget=1e-6))
+sample2_df<- reshape2::melt(result2, varnames = c("time", "draws"))
+MSE <- Calculate_MSE(dat$f,sample2_df)
+
+par(mfrow=c(1, 2))
+plot_function1(dat$f,dat_trials,sample2_df)
+plot_function2(dat$f,dat_trials,sample2_df)
+time.cost2
+MSE
+```
+
+
+First use m = 25
+```{r}
+time.cost2<- system.time(result2 <- sample_f_projection2(dat$y,theta, n_draws =30, m =25,nugget=1e-6))
+sample2_df<- reshape2::melt(result2, varnames = c("time", "draws"))
+MSE <- Calculate_MSE(dat$f,sample2_df)
+
+par(mfrow=c(1, 2))
+plot_function1(dat$f,dat_trials,sample2_df)
+plot_function2(dat$f,dat_trials,sample2_df)
+time.cost2
+MSE
+```
+
+```{r,warning=FALSE}
+Ms <- 2:30
+MSEs <- rep(NA, length(2:30))
+Time_Costs <- rep(NA,length(2:30))
+for(m in Ms){
+  time.cost2<- system.time(result2 <- sample_f_projection2(dat$y,theta, n_draws =30, m=m,nugget=1e-6))
+  sample2_df<- reshape2::melt(result2, varnames = c("time", "draws"))
+  MSE <- Calculate_MSE(dat$f,sample2_df)
+  MSEs[m-1] <- MSE
+  Time_Costs[m-1] <- time.cost2
+}
+```
+
+
+Find the 
+```{r}
+plot(2:30, MSEs,
+     xlab = "Number of m, or number of knots",
+     ylab = "MSE",
+     main = "The MSEs compared with Different Knots")
+abline(h = 0.0001637398,col = "red")
+text(x = 25, y = 0.05,labels = "Time Cost for full GP", col = "red")
+
+plot(2:30, MSEs,
+     xlab = "Number of m, or number of knots",
+     ylab = "MSE",
+     ylim = c(0,0.005),
+     main = "The MSEs compared with Different Knots")
+abline(h = 0.0001637398,col = "red")
+text(x = 28, y = 0,labels = "MSE for full GP", col = "red")
+```
+
